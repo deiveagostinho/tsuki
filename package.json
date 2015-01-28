@@ -1,0 +1,35 @@
+{
+  "name": "tsuki",
+  "version": "1.0.0",
+  "description": "Graph data structure for JavaScript",
+  "main": "index.js",
+  "scripts": {
+    "test": "node_modules/mocha/bin/_mocha test/",
+    "out": "./node_modules/.bin/browserify index.js > dist/tsuki.js",
+    "min": "./node_modules/.bin/uglifyjs dist/tsuki.js -o dist/tsuki.min.js",
+    "bundle": "npm run out; npm run min"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jugoncalves/tsuki.git"
+  },
+  "keywords": [
+    "graph",
+    "data",
+    "structure"
+  ],
+  "author": "Ju Gonçalves <github@jugoncalv.es>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jugoncalves/tsuki/issues"
+  },
+  "homepage": "https://github.com/jugoncalves/tsuki",
+  "devDependencies": {
+    "mocha": "^2.0.1",
+    "uglify-js": "^2.4.16",
+    "browserify": "^8.0.3",
+    "chai": "^1.10.0"
+  },
+  "dependencies": {
+  }
+}
