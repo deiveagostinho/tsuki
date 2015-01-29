@@ -28,3 +28,8 @@ Roadmap
 - [ ] Chordal checker
 - [x] Vertex Coloring
 - [x] Lexicographic Breadth-First Search
+
+####Pathfinding
+- [ ] A* (unweighted graph)
+- [ ] Prim
+- [ ] Dijkstra
