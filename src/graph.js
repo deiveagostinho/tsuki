@@ -1,5 +1,5 @@
-var Vertex    = require('./vertex')
-  , Iterator  = require('./iterator')
+var I = require('immutable')
+  , R = require('ramda')
 
 /*
 *
@@ -7,221 +7,107 @@ var Vertex    = require('./vertex')
 *
 */
 
-var Graph = Object.create({})
-
-Graph.new = function (name, desc, di, vs) {
-  var vs      = Vertex.clone(vs || {})
-    , g       = Object.create(Graph)
-    , di      = di || false
-
-  Object.defineProperties(g, {
-    '_vs': {
-        get: function () {
-        return vs
-      }
-      , enumerable: true
-    }
-    , '_type': {
-        value: 'graph'
-    }
-    , 'name' : {
-        value: name
-      , enumerable: true
-    }
-    , 'desc' : {
-        value: desc
-      , enumerable: true
-    }
-    , 'directed' : {
-        value: di
-      , enumerable: true
-    }
-  })
-
-  delete g.new
-
-  return Object.freeze(g)
+var Graph = function (d) {
+  this.directed = d || false
+  this.al       = null
+  this.vs       = null
 }
 
-Graph.clone = function (g) {
-  return Graph.new(this.name, this.desc, this.di, this._vs)
+function graphFactory (d, al, vs) {
+  var g = new Graph()
+
+  g.directed = d
+  g.ajList   = al
+  g.vs       = vs
+
+  return g
 }
 
-Graph.diff = function (old, props){
-
-  var name = props.name ? props.name : old.name
-  var desc = props.desc ? props.desc : old.desc
-  var di   = props.di   ? props.di   : old.directed
-  var vs   = props.vs   ? props.vs   : old._vs
-
-  return Graph.new(name, desc, di, vs)
+function toS (value) {
+  return value.toString()
 }
 
-Graph.addVertex = function (name, v){
 
-  var vs = this._vs
-    , it = Iterator.new(this)
+// API
 
-  if(it.has(name)){
-    throw new Error("The name you've provided already exists. Try removing it first or changing the name.")
+Graph.prototype.addVertex = function (v, obj){
+  v = toS(v)
+  if(this.vs && this.vs.contains(v)){
+    throw new Error('Vertex "' + v + '" has already been added')
   }
 
-  var vertex = Vertex.new(name, v)
-  vs[vertex._id] = vertex
+  var vs = this.vs === null ? I.Map([[v, obj]])  : this.vs.set(v, obj)
+  var al = this.al === null ? I.Map([[v, null]]) : this.al.set(v, null) 
 
-  return Graph.diff(this, {vs: vs})
+  return graphFactory(this.d, al, vs)
 }
 
-Graph.removeVertex = function (v){
-
-  var vs = this._vs
-    , it = Iterator.new(this)
-
-  if(it.has(name)){
-    throw new Error("The vertex you're looking for doesn't exist.")
+Graph.prototype.removeVertex = function (){
+  v = toS(v)
+  if(this.vs && this.vs.contains(v)){
+    throw new Error('Vertex "' + v + '" does not exist')
   }
 
-  // Removes all edges before removing the vertex
-  v._edges.iterate(function(n){
-    Iterator.new(this, n.in).get().removeEdge(n.out)
-  }.bind(this))
+  var vs = this.vs.remove(v)
+  var al = this.al.remove(v)
 
-  // If it's a Digraph, all edges connected to v must be removed
-  if(this.di){
-    vs = this.map(function(vertex){
-      return vertex.edges.filter(function(e){
-        return e.out != v._id
-      })
-    })
+  return graphFactory(this.d, al, vs)
+}
+
+Graph.prototype.addEdge = function (v1, v2, w){
+  v1 = toS(v1)
+  v2 = toS(v2)
+  w = w >= 0 ? w : 1
+
+  if(this.vs && this.vs.contains(v1)){
+    throw new Error('Vertex "' + v1 + '" does not exist')
+  }
+  if(this.vs && this.vs.contains(v2)){
+    throw new Error('Vertex "' + v2 + '" does not exist')
   }
 
-  delete vs[v._id]
+  var edges = this.al.get(v) === null ? I.Map([[v2, w]]) : this.al.get(v).add(v2, w)
+  var al = this.al.set(v, edges)
 
-  return Graph.diff(this, {vs: vs})
+  return graphFactory(this.d, al, this.vs)
 }
 
-Graph.clean = function (){
-  return Graph.new(this.name, this.desc)
-}
+Graph.prototype.removeEdge = function (v1, v2){
+  v1 = toS(v1)
+  v2 = toS(v2)
+  w = w >= 0 ? w : 1
 
-Graph.degree = function (){
-  var max = -Infinity
-
-  this.mapToArray(function(v, k){
-    return v.degree()
-  })
-  .forEach(function(d){
-    if(d > max) max = d
-  })
-
-  return max
-}
-
-Graph.n = function (){
-  return Object.keys(this._vs).length
-}
-
-Graph.isGraph = function (g){
-  return g._type == 'graph'
-}
-
-Graph.fromObject = function (o){
-  var name      = o.name
-    , desc      = o.desc
-    , di        = o.directed
-    , vertices  = o.vertices || o.nodes
-    , edges     = o.edges
-    , vs        = Vertex.fromObject(vertices, edges, di)
-
-  return Graph.diff(name, desc, di, vs)
-}
-
-Graph.toObject = function (){
-  var o = Object.create({})
-
-  o.name      = this.name
-  o.desc      = this.desc
-  o.directed  = this.directed
-  
-  // export vertices
-  o.nodes = this.mapToArray(function(v){
-    return v.toObject()
-  })
-  
-  // export edges
-  o.edges = this.mapToArray(function(v){
-    return v.exportEdges()
-  })
-  .reduce(function(acc, es){
-     return acc.concat(es)
-  })
-  .filter(function(e, i, self) {
-    return self.indexOf(e) === i
-  })
-
-  return o
-}
-
-Graph.map = function (f){
-  var vs = Object.create({})
-
-  this.forEach(function(v, key){
-    vs[key] = f(v, key)
-  })
-
-  return vs
-}
-
-Graph.mapToArray = function (f){
-  var vs = []
-
-  this.forEach(function(v, key){
-    vs.push(f(v, key))
-  })
-
-  return vs
-}
-
-Graph.filter = function(f){
-  var vs = Object.create({})
-
-  this.forEach(function(v, key){
-    if(f(v, key)) vs[key] = v
-  })
-
-  return vs
-}
-
-Graph.forEach = function(f){
-  var vs = this._vs
-  Object.keys(vs).forEach(function(key, index){
-    f(vs[key], key, index)
-  })
-}
-
-Graph.exportByColor = function () {
-  var colors = []
-  
-  var max = this.mapToArray(function(v){
-    return v.label
-  })
-  .reduce(function(acc, l){
-    return acc > l ? acc : l
-  }, -Infinity)
-  
-  for(var i = 1; i <= max; i++){
-    colors[i] = []
+  if(this.vs && !this.vs.contains(v1)){
+    throw new Error('Vertex "' + v1 + '" does not exist')
   }
-  
-  this.forEach(function(v){
-    colors[v.label].push(v.toObject())
-  })
-  
-  console.log(colors)
+  if(this.vs && !this.vs.contains(v2)){
+    throw new Error('Vertex "' + v2 + '" does not exist')
+  }
+  if(this.al.get(v1) && !this.al.get(v1).contains(v2)){
+    throw new Error(v1 + "-" +v2 + '" is not an edge')
+  }
 
-  return colors
+  var edges = this.al.get(v).remove(v2)
+  var al = this.al.set(v, edges)
+
+  return graphFactory(this.d, al, this.vs)
 }
 
-Graph.Iterator = Iterator
+Graph.prototype.clean = function (){
+  return new Graph()
+}
 
-module.exports = Object.freeze(Graph)
+Graph.prototype.degree = function (){
+  return R.compose(R.max, g.ajList.map)(R.prop('size'))
+}
+
+Graph.prototype.size = function (){
+  return g.vs.size
+}
+
+Graph.prototype.isGraph = function (g){
+    return g.prototype === Graph
+}
+
+
+module.exports = Graph

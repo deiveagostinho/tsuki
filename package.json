@@ -31,5 +31,7 @@
     "chai": "^1.10.0"
   },
   "dependencies": {
+    "immutable": "^3.7.2",
+    "ramda": "^0.13.0"
   }
 }
